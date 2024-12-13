@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Firebase Detection</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f9;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+      font-size: 1.5rem;
+    }
+
+    .main {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      padding: 1rem;
+      gap: 1rem;
+    }
+
+    .container {
+      background: white;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      flex: 1;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      margin-bottom: 0.5rem;
+      color: #007bff;
+    }
+
+    .data-item {
+      padding: 1rem;
+      margin: 1rem 0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-item h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: #333;
+    }
+
+    .data-item p {
+      margin: 0.5rem 0;
+      color: #555;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 400px;
+    }
+  </style>
+</head>
+<body>
+  <header>Real-Time Detection Dashboard</header>
+
+  <div class="main">
+    <div class="container" id="data-container">
+      <h2 class="section-title">Thermal and Person Detections</h2>
+      <div id="thermal-data">
+        <h3 class="section-title">Thermal Detections</h3>
+        <p>Loading thermal data...</p>
+      </div>
+      <div id="person-data">
+        <h3 class="section-title">Person Detections</h3>
+        <p>Loading person data...</p>
+      </div>
+    </div>
+
+    <div class="container">
+      <h2 class="section-title">Human Detection Activity</h2>
+      <div class="chart-container">
+        <canvas id="human-detection-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAOh-D6OMwrTu3IWfarKo0nh4bt3LeaXlI",
+      authDomain: "raspberrydata-41e99.firebaseapp.com",
+      databaseURL: "https://raspberrydata-41e99-default-rtdb.firebaseio.com",
+      projectId: "raspberrydata-41e99",
+      storageBucket: "raspberrydata-41e99.appspot.com",
+      messagingSenderId: "161208007104",
+      appId: "1:161208007104:web:d0f4d7ca61f4e37f33f025"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // DOM Elements
+    const thermalDataDiv = document.getElementById('thermal-data');
+    const personDataDiv = document.getElementById('person-data');
+
+    // Chart.js setup
+    const ctx = document.getElementById('human-detection-chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Human Detection',
+          data: [],
+          borderColor: '#007bff',
+          backgroundColor: 'rgba(0, 123, 255, 0.1)',
+          borderWidth: 2,
+          pointRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top'
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Time'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Detection Value'
+            },
+            min: 0,
+            max: 1,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
+
+    // Realtime Updates: Thermal Data
+    const thermalRef = ref(database, 'thermal_detections');
+    onValue(thermalRef, (snapshot) => {
+      const data = snapshot.val();
+      thermalDataDiv.innerHTML = '<h3 class="section-title">Thermal Detections</h3>'; // Reset content
+
+      if (!data) {
+        thermalDataDiv.innerHTML += '<p>No thermal data available.</p>';
+        return;
+      }
+
+      const alive = data.alive || 0;
+      const deceased = data.deceased || 0;
+      thermalDataDiv.innerHTML += `<p><strong>Alive:</strong> ${alive}</p>`;
+      thermalDataDiv.innerHTML += `<p><strong>Deceased:</strong> ${deceased}</p>`;
+    });
+
+    // Realtime Updates: Person Data
+    const personRef = ref(database, 'person_detections');
+    onValue(personRef, (snapshot) => {
+      const data = snapshot.val();
+      personDataDiv.innerHTML = '<h3 class="section-title">Person Detections</h3>'; // Reset content
+
+      if (!data) {
+        personDataDiv.innerHTML += '<p>No person data available.</p>';
+        return;
+      }
+
+      Object.keys(data).forEach((key) => {
+        const detection = data[key];
+        personDataDiv.innerHTML += `
+          <div class="data-item">
+            <h3>Detection at ${detection.timestamp}</h3>
+            <p><strong>Confidence:</strong> ${(detection.confidence * 100).toFixed(2)}%</p>
+            <p><strong>Bounding Box:</strong> [${detection.bbox.x1}, ${detection.bbox.y1}, ${detection.bbox.x2}, ${detection.bbox.y2}]</p>
+          </div>`;
+      });
+    });
+
+    // Realtime Updates: Human Detection Chart
+    const humanRef = ref(database, 'human_detection');
+    onValue(humanRef, (snapshot) => {
+      const detectionValue = snapshot.val();
+      const now = new Date().toLocaleTimeString();
+
+      if (chart.data.labels.length > 20) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+
+      chart.data.labels.push(now);
+      chart.data.datasets[0].data.push(detectionValue);
+
+      chart.update();
+    });
+  </script>
+</body>
+</html>
